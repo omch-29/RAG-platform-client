@@ -11,6 +11,12 @@ export default function Sidebar({ onLogout }) {
   const [ingesting, setIngesting] = useState(false);
   const [error, setError] = useState(null);
 
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [invitePassword, setInvitePassword] = useState('');
+  const [inviting, setInviting] = useState(false);
+  const [inviteMessage, setInviteMessage] = useState(null);
+  const [inviteError, setInviteError] = useState(null);
+
   async function refresh() {
     try {
       const [docsRes, usageRes] = await Promise.all([api.listDocuments(), api.getUsage()]);
@@ -39,6 +45,25 @@ export default function Sidebar({ onLogout }) {
       setError(err.message);
     } finally {
       setIngesting(false);
+    }
+  }
+
+  async function handleInvite(e) {
+    e.preventDefault();
+    if (!inviteEmail.trim() || !invitePassword.trim()) return;
+    setInviting(true);
+    setInviteError(null);
+    setInviteMessage(null);
+    try {
+      const result = await api.inviteMember({ email: inviteEmail, password: invitePassword, role: 'member' });
+      setInviteMessage(result.message || 'Teammate added.');
+      setInviteEmail('');
+      setInvitePassword('');
+    } catch (err) {
+      // a 403 here means the current user isn't an admin — only admins can invite
+      setInviteError(err.message);
+    } finally {
+      setInviting(false);
     }
   }
 
@@ -89,6 +114,38 @@ export default function Sidebar({ onLogout }) {
               <span style={{ ...styles.statusBadge, ...statusColor(doc.status) }}>{doc.status}</span>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section style={styles.section}>
+        <div className="eyebrow" style={styles.sectionTitle}>
+          Invite a teammate
+        </div>
+        <form onSubmit={handleInvite} style={styles.ingestForm}>
+          <input
+            type="email"
+            placeholder="teammate@company.com"
+            value={inviteEmail}
+            onChange={(e) => setInviteEmail(e.target.value)}
+            required
+          />
+          <input
+            type="password"
+            placeholder="Temporary password"
+            value={invitePassword}
+            onChange={(e) => setInvitePassword(e.target.value)}
+            required
+          />
+          <button type="submit" disabled={inviting} style={styles.ingestButton}>
+            {inviting ? 'Adding…' : 'Add to workspace'}
+          </button>
+        </form>
+        {inviteMessage && <div style={styles.successText}>{inviteMessage}</div>}
+        {inviteError && <div style={styles.error}>{inviteError}</div>}
+        <div style={styles.emptyHint}>
+          New team members belong to this workspace. 
+          They sign in using the workspace slug, their email, and the password assigned when they were added.
+           (signing up creates a brand new, separate workspace).
         </div>
       </section>
 
@@ -165,6 +222,11 @@ const styles = {
   error: {
     fontSize: 12,
     color: 'var(--coral)',
+    fontFamily: 'var(--font-mono)',
+  },
+  successText: {
+    fontSize: 12,
+    color: 'var(--green)',
     fontFamily: 'var(--font-mono)',
   },
   docList: {
