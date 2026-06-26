@@ -1,0 +1,210 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { api } from '../lib/api';
+
+export default function Sidebar({ onLogout }) {
+  const [documents, setDocuments] = useState([]);
+  const [usage, setUsage] = useState(null);
+  const [title, setTitle] = useState('');
+  const [text, setText] = useState('');
+  const [ingesting, setIngesting] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function refresh() {
+    try {
+      const [docsRes, usageRes] = await Promise.all([api.listDocuments(), api.getUsage()]);
+      setDocuments(docsRes.documents || []);
+      setUsage(usageRes.totals || null);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  async function handleIngest(e) {
+    e.preventDefault();
+    if (!title.trim() || !text.trim()) return;
+    setIngesting(true);
+    setError(null);
+    try {
+      await api.ingestDocument({ title, text });
+      setTitle('');
+      setText('');
+      await refresh();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIngesting(false);
+    }
+  }
+
+  return (
+    <aside style={styles.rail}>
+      <div style={styles.railHeader}>
+        <span className="eyebrow">rag-platform</span>
+        <button onClick={onLogout} style={styles.logoutButton}>
+          sign out
+        </button>
+      </div>
+
+      <section style={styles.section}>
+        <div className="eyebrow" style={styles.sectionTitle}>
+          Add a document
+        </div>
+        <form onSubmit={handleIngest} style={styles.ingestForm}>
+          <input
+            placeholder="Document title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+          />
+          <textarea
+            placeholder="Paste document text…"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={5}
+            required
+            style={{ resize: 'vertical' }}
+          />
+          <button type="submit" disabled={ingesting} style={styles.ingestButton}>
+            {ingesting ? 'Indexing…' : 'Ingest'}
+          </button>
+        </form>
+        {error && <div style={styles.error}>{error}</div>}
+      </section>
+
+      <section style={styles.section}>
+        <div className="eyebrow" style={styles.sectionTitle}>
+          Documents ({documents.length})
+        </div>
+        <div style={styles.docList}>
+          {documents.length === 0 && <div style={styles.emptyHint}>No documents yet — add one above.</div>}
+          {documents.map((doc) => (
+            <div key={doc._id} style={styles.docRow}>
+              <span style={styles.docTitle}>{doc.title}</span>
+              <span style={{ ...styles.statusBadge, ...statusColor(doc.status) }}>{doc.status}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {usage && (
+        <section style={{ ...styles.section, marginTop: 'auto' }}>
+          <div className="eyebrow" style={styles.sectionTitle}>
+            Usage (all-time)
+          </div>
+          <div className="mono" style={styles.usageGrid}>
+            <span>requests</span>
+            <span>{usage.requestCount}</span>
+            <span>tokens</span>
+            <span>{usage.totalTokens}</span>
+            <span>est. cost</span>
+            <span>${usage.estimatedCostUSD.toFixed(4)}</span>
+          </div>
+        </section>
+      )}
+    </aside>
+  );
+}
+
+function statusColor(status) {
+  if (status === 'ready') return { color: 'var(--green)', borderColor: 'var(--green)' };
+  if (status === 'failed') return { color: 'var(--coral)', borderColor: 'var(--coral)' };
+  return { color: 'var(--text-dim)', borderColor: 'var(--border)' };
+}
+
+const styles = {
+  rail: {
+    width: 'var(--rail-width)',
+    minWidth: 'var(--rail-width)',
+    height: '100vh',
+    background: 'var(--surface)',
+    borderRight: '1px solid var(--border)',
+    display: 'flex',
+    flexDirection: 'column',
+    padding: 20,
+    gap: 24,
+    overflowY: 'auto',
+  },
+  railHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  logoutButton: {
+    background: 'none',
+    border: 'none',
+    color: 'var(--text-dim)',
+    fontSize: 11,
+  },
+  section: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+  },
+  sectionTitle: {
+    marginBottom: 2,
+  },
+  ingestForm: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  ingestButton: {
+    background: 'var(--surface-raised)',
+    border: '1px solid var(--amber-dim)',
+    color: 'var(--amber)',
+    borderRadius: 3,
+    padding: '9px 12px',
+    fontSize: 12.5,
+  },
+  error: {
+    fontSize: 12,
+    color: 'var(--coral)',
+    fontFamily: 'var(--font-mono)',
+  },
+  docList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+  },
+  emptyHint: {
+    fontSize: 12.5,
+    color: 'var(--text-dim)',
+  },
+  docRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+    fontSize: 13,
+    padding: '6px 0',
+    borderBottom: '1px solid var(--border)',
+  },
+  docTitle: {
+    color: 'var(--text-bright)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  statusBadge: {
+    fontFamily: 'var(--font-mono)',
+    fontSize: 10,
+    border: '1px solid',
+    borderRadius: 2,
+    padding: '2px 6px',
+    flexShrink: 0,
+    textTransform: 'uppercase',
+  },
+  usageGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'auto 1fr',
+    gap: '4px 12px',
+    fontSize: 12,
+    color: 'var(--text-dim)',
+  },
+};
