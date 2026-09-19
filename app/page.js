@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getToken, clearToken } from '../lib/api';
+import { getToken, clearSession } from '../lib/api';
 import Sidebar from '../components/Sidebar';
 import ChatPanel from '../components/ChatPanel';
 
@@ -19,7 +19,7 @@ export default function DashboardPage() {
   }, [router]);
 
   function handleLogout() {
-    clearToken();
+    clearSession();   // clears token + slug + role
     router.replace('/login');
   }
 
@@ -32,5 +32,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-//https://main.dxj0l2n0qnvwz.amplifyapp.com/
