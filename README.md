@@ -58,7 +58,7 @@ Open `http://localhost:3000`.
 
 ---
 
-## Important: teammates log in, not sign up
+## Important: teammates log in, not sign 
 
 Signing up always creates a **brand new, completely separate workspace**. If a colleague signs up instead of logging in, they'll create their own isolated tenant with no access to your documents. Give them your workspace slug and have them use the login form.
 
